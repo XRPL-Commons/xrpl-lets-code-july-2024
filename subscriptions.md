@@ -5,47 +5,38 @@ The XRPL is a public ledger, meaning that when you write on chain anyone can rea
 First off we will create a pair of accounts:
 
 ```
-import xrpl from 'xrpl';
+import xrpl from "xrpl";
 
-const serverURL = 'wss://s.altnet.rippletest.net:51233'; // For testnet
-const walletAddress = 'rfwGxAj4B1NkBihbuL83CiGjvsp9BVzrKX'
+const serverURL = "wss://s.altnet.rippletest.net:51233"; // For testnet
 
 const main = async () => {
   const client = new xrpl.Client(serverURL)
   await client.connect()
 
   // do something useful
-    const subscriptionRequest = {
-      command: 'subscribe',
-      accounts: [walletAddress]
-    };
+  console.log("lets fund 2 accounts...")
+  const { wallet: wallet1, balance: balance1 } = await client.fundWallet()
+  const { wallet: wallet2, balance: balance2 } = await client.fundWallet()
 
-    await client.request(subscriptionRequest)
-    console.log(`Subscribed to transactions for account: ${walletAddress}`)
+  console.log("wallet1", wallet1)
+  console.log("wallet2", wallet2)
 
-    // Event listener for incoming transactions
-    client.on('transaction', (transaction) => {
-      console.log('Transaction:', transaction);
-    })
-
-    // Event listener for errors
-    client.on('error', (error) => {
-      console.error('Error:', error);
-    })
+  console.log({
+    balance1,
+    address1: wallet1.address, //wallet1.seed
+    balance2,
+    address2: wallet2.address,
+  })
 
   // end
-  // keep open
-  console.log('all done')
-}
+  client.disconnect()
+};
 
 main()
-setInterval(() => {
-  console.log('One second has passed!');
-}, 1000);
 ```
+You'll check the logs and find the seed for both accounts, this is what we will use later to reuse these accounts deterministically. 
 
-
-Then we will generate some transactions on the one hand.
+Here is how we would generate a payment transaction between the two accounts.
 
 ```
 import xrpl from "xrpl";
@@ -85,18 +76,6 @@ const main = async () => {
   });
   console.log(result)
 
-  // console.log(wallet1)
-
-  // const request = {
-  //   command: 'account_tx',
-  //   account: wallet1.classicAddress,
-  //   ledger_index_min: -1, // To get transactions from all ledgers
-  //   ledger_index_max: -1, // To get transactions up to the most recent ledger
-  //   limit: 10, // Limit the number of transactions (optional)
-  // }
-  // const response = await client.request(request)
-  // console.log('Account Transactions:', response.result.transactions)
-
   // end
   client.disconnect()
 };
@@ -105,7 +84,22 @@ main()
 
 ```
 
-And finally we will demonstrate how to listen for transactions affecting a given account. 
+One way to retrieve transactions for a given account is to simply create a request for transactions. Here is an example.
+
+```
+// ... define wallet1 before this point
+const request = {
+  command: 'account_tx',
+  account: wallet1.classicAddress,
+  ledger_index_min: -1, // To get transactions from all ledgers
+  ledger_index_max: -1, // To get transactions up to the most recent ledger
+  limit: 10, // Limit the number of transactions (optional)
+}
+const response = await client.request(request)
+console.log('Account Transactions:', response.result.transactions)
+```
+
+And finally we will demonstrate how to listen for transactions affecting a given account, so as to catch all transactions. You could use this to build a notification bot that lets you know when anything happens to your account.
 
 ```
 import xrpl from 'xrpl';
